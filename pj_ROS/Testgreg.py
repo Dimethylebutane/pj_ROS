@@ -19,6 +19,12 @@ class MinimalSubscriber(Node):
     def __init__(self):
         super().__init__('Testgreg')
 
+        #paramètre
+        self.declare_parameter('output_topic', '/cmd_vel')
+        self.declare_parameter('vmin', "0.3")
+        cmdveltopic = self.get_parameter('output_topic').get_parameter_value().string_value
+        self.vmin = float(self.get_parameter('vmin').get_parameter_value().string_value)
+
         #angle entre -pi/2 et pi/2
         self.theta = np.linspace(-np.pi/2, np.pi/2, 180, True)
 
@@ -43,7 +49,7 @@ class MinimalSubscriber(Node):
         #commande envoyee au robot (vitesse + rotation)
         self.botPub = self.create_publisher(
                 Twist,
-                '/cmd_vel',
+                cmdveltopic,
                 10)
         self.botMsg = Twist()
         self.botPub
@@ -99,7 +105,7 @@ class MinimalSubscriber(Node):
         Mz = np.sum(Mz)
         print("Fx:", Fx, "Mz:", Mz)
         
-        self.v = max(self.m*(1 + Fx), 0.3) #clamp 0
+        self.v = max(self.m*(1 + Fx), self.vmin) #clamp 0
         self.w = self.I*Mz
         print("v:", self.v, "w:", self.w)
 
