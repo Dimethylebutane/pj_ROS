@@ -28,14 +28,14 @@ class MinimalSubscriber(Node):
         #angle entre -pi/2 et pi/2
         self.theta = np.linspace(-np.pi/2, np.pi/2, 180, True)
 
-        self.Ka = 0.8 #raideur ressort angulaire
+        self.Ka = 0.2 #raideur ressort angulaire
         self.Kl = 0.5 #raideur ressort linéaire
         print(self.Ka)
 
         #Dynamic state
-        self.m = 10.0
+        self.m = 5.0
         self.v = 0.0 #forward speed
-        self.I = 1.5
+        self.I = 1
         self.w = 0.0 #rotation speed
 
         #subscribe to lidar
@@ -105,13 +105,14 @@ class MinimalSubscriber(Node):
         Mz = np.sum(Mz)
         print("Fx:", Fx, "Mz:", Mz)
         
-        self.v = max(self.m*(1 + Fx), self.vmin) #clamp 0
-        self.w = self.I*Mz
+        self.v = max(self.m*(1 + Fx), self.vmin)    #clamp vmin
+        self.w += (Mz - 1*self.w)/self.I
+        self.w = min(max(-2.0, self.w), 2.0)        #clamp -2; 2
         print("v:", self.v, "w:", self.w)
 
         self.botMsg = Twist()
         self.botMsg.linear.x = self.v
-        self.botMsg.angular.z = self.w
+        self.botMsg.angular.z = self.w 
 
         self.botPub.publish(self.botMsg)
 
