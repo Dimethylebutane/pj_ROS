@@ -19,6 +19,14 @@ class MinimalSubscriber(Node):
     def __init__(self):
         super().__init__('Testgreg')
 
+        # Souscription à un topic de trigger externe (ex: vision)
+        self.triggerSub = self.create_subscription(
+            String,
+            '/vision_trigger',
+            self.trigger_cb,
+            10
+        )
+
         #paramètre
         self.declare_parameter('output_topic', '/cmd_vel')
         self.declare_parameter('vmin', "0.3")
@@ -115,6 +123,12 @@ class MinimalSubscriber(Node):
         self.botMsg.angular.z = self.w 
 
         self.botPub.publish(self.botMsg)
+
+        
+    def trigger_cb(self, msg):
+        if msg.data.strip().lower() == "stop":
+            self.get_logger().warn("Message 'stop' reçu : arrêt du nœud.")
+            rclpy.shutdown()
 
 def main(args=None):
     print("[I] Starting challenge IA solver")
