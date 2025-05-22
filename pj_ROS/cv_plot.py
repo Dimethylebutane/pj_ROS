@@ -50,7 +50,7 @@ class CompressedImageSubscriber(Node):
         cv2.imshow("Compressed Image", image)
 
         # Définir une région d'intérêt (ROI) horizontale
-        roi = image[200:240, :]  # à ajuster selon la hauteur de ton image
+        roi = image[200:240, :]
 
         # Convertir en HSV et créer un masque pour la couleur verte
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
