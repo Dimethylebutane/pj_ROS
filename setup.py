@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'couloir = pj_ROS.Testgreg:main',
+            'ligne = pj_ROS.cv_plot:main',
         ],
     },
 )
