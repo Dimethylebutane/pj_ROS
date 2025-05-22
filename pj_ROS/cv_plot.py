@@ -23,10 +23,18 @@ class CompressedImageSubscriber(Node):
         )
         self.subscription  # évite un warning
 
+          #subscribe to lidar
+        self.lidarSub = self.create_subscription(
+            LaserScan,
+            'scan',
+            self.lidar_cb,
+            10)
+        self.lidarSub  # prevent unused variable warning
+
         # Paramètres
         self.declare_parameter('output_topic', '/cmd_vel')
         self.declare_parameter('vmin', "0.3")
-        self.declare_parameter('k_p', 0.003)
+        self.declare_parameter('k_p', 0.01)
         self.k_p = self.get_parameter('k_p').get_parameter_value().double_value
         cmdveltopic = self.get_parameter('output_topic').get_parameter_value().string_value
         self.vmin = float(self.get_parameter('vmin').get_parameter_value().string_value)
@@ -72,7 +80,7 @@ class CompressedImageSubscriber(Node):
             # Commande robot : avance + corrige direction
             self.botMsg = Twist()
             self.botMsg.linear.x = self.vmin
-            self.botMsg.angular.z = -error * self.k_p  # coeff à ajuster
+            self.botMsg.angular.z = -error * self.k_p * 0.8 + (1-0.8)*self.botMsg.angular.z  # coeff à ajuster
 
             self.botPub.publish(self.botMsg)
             self.get_logger().info(f"Ligne verte à x={cx}, erreur={error}")
@@ -87,7 +95,21 @@ class CompressedImageSubscriber(Node):
         cv2.imshow("Masque", mask)
         cv2.waitKey(1)
 
-       
+    def lidar_cb(self, msg):
+        inc = msg.angle_increment #rad
+            #print("inc:", inc)
+        r = msg.ranges #get ranges
+        N = len(r) #number of value = 360
+
+
+        #convert to np array
+        r = np.abs(np.array(r, dtype=np.float32))
+        r = np.append(r[-N//4:][::-1], r[:N//4]) #-pi/2 à pi/2
+        r[r == np.inf] = 99 #remove inf
+        r[r == np.nan] = 99 #remove nan
+        print(r)
+        
+        
 
 
 def main(args=None):
