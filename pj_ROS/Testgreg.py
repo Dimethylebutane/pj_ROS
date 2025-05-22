@@ -30,6 +30,9 @@ class MinimalSubscriber(Node):
         #paramètre
         self.declare_parameter('output_topic', '/cmd_vel')
         self.declare_parameter('vmin', "0.3")
+        self.declare_parameter('DEBUG', '0')
+
+        self.DEBUG = (self.get_parameter('output_topic').get_parameter_value().string_value == '1')
         cmdveltopic = self.get_parameter('output_topic').get_parameter_value().string_value
         self.vmin = float(self.get_parameter('vmin').get_parameter_value().string_value)
 
@@ -38,7 +41,8 @@ class MinimalSubscriber(Node):
 
         self.Ka = 0.2 #raideur ressort angulaire
         self.Kl = 0.5 #raideur ressort linéaire
-        print(self.Ka)
+        if self.DEBUG:
+            print(self.Ka)
 
         #Dynamic state
         self.m = 5.0
@@ -76,8 +80,8 @@ class MinimalSubscriber(Node):
         #convert to np array
         r = np.abs(np.array(r, dtype=np.float32))
         r = np.append(r[-N//4:][::-1], r[:N//4]) #-pi/2 à pi/2
-        r[r == np.inf] = 99 #on enlève les inf pour les calcules
-        r[r == np.nan] = 99 #on enlève les nan 
+        r[r == np.inf] = 5 #on enlève les inf pour les calcules
+        r[r == np.nan] = 5 #on enlève les nan 
         N = N//2 #On garde uniquement la moiteir des valeurs, les laser qui mesure devant le robot
         n = 4
         r = self.moving_average(r, n=n) #moyenne glissante
@@ -87,37 +91,33 @@ class MinimalSubscriber(Node):
         #angles en radian des faisceaux
         angles = np.linspace(-np.pi/2 + inc*(n-1)/2, np.pi/2 - inc*(n-1)/2, N, True) #en rad l'angle de chaque rayon
         
-        #force de freinage
-        #print("")
-        #print("r", r)
-        #print("Ll", self.Ll(angles))
+        #force de freinage → inutilisé voir vmin
         Fx = (r-self.Ll(angles)) * np.cos(angles) * self.Kl
         Fx[Fx > 0] = 0 #les ressorts linéaire nous repousse uniquement. On supprime les ressorts qui nous attire
-        #print("Fx:", Fx)
-        #plt.plot(Fx); plt.show()
-        #fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}); ax.plot(angles, Fx); plt.show()
 
         #couple de rotation
         Mz = (r-self.La(angles)) * np.cos(angles) * self.Kl * self.La(angles)
-        Mz[r>=10] = 0 #supprime les inf
+        #Mz[r>=10] = 0 #supprime les inf
         Mz = Mz * np.sin(angles) #si obstacle gauche, theta < 0 => sin < 0 => Mz < 0 => tourne à droite
-        #print("Mz:", Mz, np.sum(Mz))
-        #fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}); ax.plot(angles, Mz); plt.show()
 
         #Physics
-        Fx = np.sum(Fx)
-        Mz = np.sum(Mz)
-        print("Fx:", Fx, "Mz:", Mz)
-        
-        self.v = max(self.m*(1 + Fx), self.vmin)    #clamp vmin
-        self.w += (Mz - 1*self.w)/self.I
-        self.w = min(max(-2.0, self.w), 2.0)        #clamp -2; 2
-        print("v:", self.v, "w:", self.w)
+        Fx = np.sum(Fx) #somme des force = résultante de freinage →inutilisé, voir vmin
+        Mz = np.sum(Mz) #somme des moments = moment de rotation
 
+        if self.DEBUG:
+            print("Fx:", Fx, "Mz:", Mz)
+        
+        self.v = max(self.m*(1 + Fx), self.vmin)    #clamp vmin → on max la vitesse vu que ça passe le robot est lent
+        self.w += (Mz - 1*self.w)/self.I
+        self.w = min(max(-2.0, self.w), 2.0)        #clamp -2; 2, eviter de construire trop d'inertie
+
+        if self.DEBUG:
+            print("v:", self.v, "w:", self.w)
+
+        #envoi de la comande
         self.botMsg = Twist()
         self.botMsg.linear.x = self.v
         self.botMsg.angular.z = self.w 
-
         self.botPub.publish(self.botMsg)
 
         
@@ -127,7 +127,7 @@ class MinimalSubscriber(Node):
             rclpy.shutdown()
 
 def main(args=None):
-    print("[I] Starting challenge IA solver")
+    print("[I] Starting couloir challenge IA solver of the dead")
     rclpy.init(args=args)
 
     minimal_subscriber = MinimalSubscriber()
