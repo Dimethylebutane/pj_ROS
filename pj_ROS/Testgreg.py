@@ -59,9 +59,6 @@ class MinimalSubscriber(Node):
         ret[n:] = ret[n:] - ret[:-n]
         return ret[n - 1:] / n
 
-    def clock_cb(self, msg):
-        self.T = msg.sec
-
     def lidar_cb(self, msg):
         inc = msg.angle_increment #rad
 
