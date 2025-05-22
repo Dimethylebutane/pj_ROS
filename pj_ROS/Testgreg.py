@@ -42,9 +42,9 @@ class MinimalSubscriber(Node):
 
         #Dynamic state
         self.m = 5.0
-        self.v = 0.0 #forward speed
+        self.v = 0.0 #vitesse x
         self.I = 1
-        self.w = 0.0 #rotation speed
+        self.w = 0.0 #vitesse rotation z
 
         #subscribe to lidar
         self.lidarSub = self.create_subscription(
@@ -67,22 +67,18 @@ class MinimalSubscriber(Node):
         ret[n:] = ret[n:] - ret[:-n]
         return ret[n - 1:] / n
 
-    def clock_cb(self, msg):
-        self.T = msg.sec
-
     def lidar_cb(self, msg):
         inc = msg.angle_increment #rad
-        #print("inc:", inc)
-        r = msg.ranges #get ranges
-        N = len(r) #number of value = 360
 
+        r = msg.ranges #min/max distance mesuré par le lidar
+        N = len(r) #lidar = 360 valeurs
 
         #convert to np array
         r = np.abs(np.array(r, dtype=np.float32))
         r = np.append(r[-N//4:][::-1], r[:N//4]) #-pi/2 à pi/2
-        r[r == np.inf] = 99 #remove inf
-        r[r == np.nan] = 99 #remove nan
-        N = N//2 #discard backward, we want to move forward
+        r[r == np.inf] = 99 #on enlève les inf pour les calcules
+        r[r == np.nan] = 99 #on enlève les nan 
+        N = N//2 #On garde uniquement la moiteir des valeurs, les laser qui mesure devant le robot
         n = 4
         r = self.moving_average(r, n=n) #moyenne glissante
         N = N - n + 1 #la moyenne à supprimer quelque valeurs
@@ -96,7 +92,7 @@ class MinimalSubscriber(Node):
         #print("r", r)
         #print("Ll", self.Ll(angles))
         Fx = (r-self.Ll(angles)) * np.cos(angles) * self.Kl
-        Fx[Fx > 0] = 0 #don't be pulled by ressort
+        Fx[Fx > 0] = 0 #les ressorts linéaire nous repousse uniquement. On supprime les ressorts qui nous attire
         #print("Fx:", Fx)
         #plt.plot(Fx); plt.show()
         #fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}); ax.plot(angles, Fx); plt.show()
