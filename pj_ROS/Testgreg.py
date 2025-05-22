@@ -80,8 +80,8 @@ class MinimalSubscriber(Node):
         #convert to np array
         r = np.abs(np.array(r, dtype=np.float32))
         r = np.append(r[-N//4:][::-1], r[:N//4]) #-pi/2 à pi/2
-        r[r == np.inf] = 5 #on enlève les inf pour les calcules
-        r[r == np.nan] = 5 #on enlève les nan 
+        r[r == np.inf] = 2 #on enlève les inf pour les calcules
+        r[r == np.nan] = 2 #on enlève les nan 
         N = N//2 #On garde uniquement la moiteir des valeurs, les laser qui mesure devant le robot
         n = 4
         r = self.moving_average(r, n=n) #moyenne glissante
@@ -96,7 +96,8 @@ class MinimalSubscriber(Node):
         Fx[Fx > 0] = 0 #les ressorts linéaire nous repousse uniquement. On supprime les ressorts qui nous attire
 
         #couple de rotation
-        Mz = (r-self.La(angles)) * np.cos(angles) * self.Kl * self.La(angles)
+        Mz = (r-self.La(angles)) * np.cos(angles/1.08) * self.Kl * self.La(angles)
+        #                               correction pour eviter de trop froler les mur
         #Mz[r>=10] = 0 #supprime les inf
         Mz = Mz * np.sin(angles) #si obstacle gauche, theta < 0 => sin < 0 => Mz < 0 => tourne à droite
 
