@@ -26,6 +26,7 @@ setup(
             'couloir = pj_ROS.Testgreg:main',
             'ligne = pj_ROS.cv_plot:main',
             'balle = pj_ROS.Balle:main',
+            'cible = pj_ROS.Cible:main',
         ],
     },
 )

@@ -1,15 +1,15 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
-from std_msgs.msg import Int32
-from rosgraph_msgs.msg import Clock
+#from std_msgs.msg import Int32
+#from rosgraph_msgs.msg import Clock
 from std_msgs.msg import String
-from std_srvs.srv import Empty
+#from std_srvs.srv import Empty
 from geometry_msgs.msg import Twist, Vector3
 import numpy as np
 import cv2 as cv
-from ament_index_python.packages import get_package_share_directory
-import os
+#from ament_index_python.packages import get_package_share_directory
+#import os
 
 class CompressedImageSubscriber(Node):
     def __init__(self):
@@ -36,7 +36,7 @@ class CompressedImageSubscriber(Node):
         self.botPub = self.create_publisher(Twist, cmdveltopic, 10)
         self.botMsg = Twist()
 
-        #stopper le 2eme challenge
+        #stop epreuve 2
         self.triggerPub = self.create_publisher(String, '/balle_trigger', 10)
 
     def imageCam_cb(self, msg):

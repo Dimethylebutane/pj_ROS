@@ -1,16 +1,17 @@
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import rclpy
 from rclpy.node import Node
 import numpy as np
 
-from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String
-from std_srvs.srv import Empty
 from geometry_msgs.msg import Twist, Vector3
 
-class MinimalSubscriber(Node):
+def clamp(m, a, M):
+    return min(max(m, a), M)
+
+class couloir_class(Node):
     def Ll(self, angles):
         return 0.4 * np.cos(angles)**7 #longueur ressort
     def La(self, angles):
@@ -47,7 +48,7 @@ class MinimalSubscriber(Node):
         #Dynamic state
         self.m = 5.0
         self.v = 0.0 #vitesse x
-        self.I = 1
+        self.I = 0.9
         self.w = 0.0 #vitesse rotation z
 
         #subscribe to lidar
@@ -57,6 +58,16 @@ class MinimalSubscriber(Node):
             self.lidar_cb,
             10)
         self.lidarSub  # prevent unused variable warning
+        
+        self.cibSub = self.create_subscription(
+            Vector3,
+            'Cible_loc',
+            self.cible_cb,
+            10)
+        self.cibSub  # prevent unused variable warning
+        self.cib_theta = 0    #angle avec la cible
+        self.bool_cib = False #la cible a déjà été vu
+
 
         #commande envoyee au robot (vitesse + rotation)
         self.botPub = self.create_publisher(
@@ -71,10 +82,15 @@ class MinimalSubscriber(Node):
         ret[n:] = ret[n:] - ret[:-n]
         return ret[n - 1:] / n
 
+    def cible_cb(self, msg):
+        self.cib_theta = msg.y*msg.z #get theta if confiance else 0
+        self.bool_cib = msg.z
+        pass
+
     def lidar_cb(self, msg):
         inc = msg.angle_increment #rad
 
-        r = msg.ranges #min/max distance mesuré par le lidar
+        r = msg.ranges #distance brut par le lidar
         N = len(r) #lidar = 360 valeurs
 
         #convert to np array
@@ -101,16 +117,24 @@ class MinimalSubscriber(Node):
         #Mz[r>=10] = 0 #supprime les inf
         Mz = Mz * np.sin(angles) #si obstacle gauche, theta < 0 => sin < 0 => Mz < 0 => tourne à droite
 
+        confiance = np.sum(abs(Mz))
+
         #Physics
         Fx = np.sum(Fx) #somme des force = résultante de freinage →inutilisé, voir vmin
         Mz = np.sum(Mz) #somme des moments = moment de rotation
+        if abs(self.cib_theta) > 0.03: #2 deg
+            print("CIB REDUCE MZ")
+            Mz = Mz/4 - self.cib_theta / 1.5
+            self.cib_theta /= 5 #decay
 
         if self.DEBUG:
             print("Fx:", Fx, "Mz:", Mz)
         
         self.v = max(self.m*(1 + Fx), self.vmin)    #clamp vmin → on max la vitesse vu que ça passe le robot est lent
-        self.w += (Mz - 1*self.w)/self.I
-        self.w = min(max(-2.0, self.w), 2.0)        #clamp -2; 2, eviter de construire trop d'inertie
+
+        wfrot = self.w * abs(self.w) * 1.25 * (1 + 0.12*self.bool_cib)
+        self.w += (Mz - wfrot)/self.I
+        self.w = min(max(-1.5, self.w), 1.5)        #clamp -2; 2, eviter de construire trop d'inertie
 
         if self.DEBUG:
             print("v:", self.v, "w:", self.w)
@@ -119,8 +143,13 @@ class MinimalSubscriber(Node):
         self.botMsg = Twist()
         self.botMsg.linear.x = self.v
         self.botMsg.angular.z = self.w 
-        self.botPub.publish(self.botMsg)
 
+        self.botMsg.linear.y = clamp(0.0, (20-confiance) / 16.0, 1.0)
+        
+        if self.DEBUG:
+            print("confiance:", self.botMsg.linear.y)
+
+        self.botPub.publish(self.botMsg)
         
     def trigger_cb(self, msg):
         if msg.data.strip().lower() == "stop":
@@ -131,7 +160,7 @@ def main(args=None):
     print("[I] Starting couloir challenge IA solver of the dead")
     rclpy.init(args=args)
 
-    minimal_subscriber = MinimalSubscriber()
+    minimal_subscriber = couloir_class()
 
     rclpy.spin(minimal_subscriber)
 
