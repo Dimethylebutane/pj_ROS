@@ -18,19 +18,7 @@ def generate_launch_description():
                 "DEBUG" : "1",
                 }],
         ),
-        
-         launch_ros.actions.Node(
-            package='pj_ROS',
-            executable='mapper',
-            name='mapper',
-            on_exit=launch.actions.Shutdown(),
-            output='screen',  # To display output messages in the terminal
-            emulate_tty=True,  # To preserve format, color of output messages
-            parameters = [{
-                "DEBUG" : "1",
-                }],
-        ),
-       
+      
         launch_ros.actions.Node(
             package='pj_ROS',
             executable='couloir',

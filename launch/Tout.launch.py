@@ -10,6 +10,18 @@ def generate_launch_description():
         
         launch_ros.actions.Node(
             package='pj_ROS',
+            executable='cible',
+            name='cible',
+            on_exit=launch.actions.Shutdown(),
+            output='screen',  # To display output messages in the terminal
+            emulate_tty=True,  # To preserve format, color of output messages
+            parameters = [{
+                "DEBUG" : "0", #minimal vitesse
+                }],
+        ),       
+
+        launch_ros.actions.Node(
+            package='pj_ROS',
             executable='couloir',
             name='couloir',
             on_exit=launch.actions.Shutdown(),
@@ -19,6 +31,15 @@ def generate_launch_description():
                 "output_topic" : "/cmd_vel", #directement parler au robot, pas besoin d'arbitrage de l'épreuve
                 "vmin" : "10", #minimal vitesse
                 }],
+        ),
+
+        launch_ros.actions.Node(
+            package='pj_ROS',
+            executable='ligne',
+            name='ligne',
+            on_exit=launch.actions.Shutdown(),
+            output='screen',  # To display output messages in the terminal
+            emulate_tty=True,  # To preserve format, color of output messages
         ),
 
         IncludeLaunchDescription(

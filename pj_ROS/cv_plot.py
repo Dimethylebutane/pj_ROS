@@ -22,8 +22,11 @@ class CompressedImageSubscriber(Node):
             10
         )
         self.subscription  # évite un warning
-
+        
         # Paramètres
+        self.declare_parameter('DEBUG', '0')
+        self.DEBUG = (self.get_parameter('DEBUG').get_parameter_value().string_value == '1')
+
         self.declare_parameter('output_topic', '/cmd_vel')
         self.declare_parameter('vmin', "0.3")
         self.declare_parameter('k_p', 0.003)
@@ -47,19 +50,30 @@ class CompressedImageSubscriber(Node):
             self.get_logger().warn("Échec du décodage de l'image")
             return
 
-        cv2.imshow("Compressed Image", image)
+        if self.DEBUG:
+            cv2.imshow("Compressed Image", image)
 
         # Définir une région d'intérêt (ROI) horizontale
-        roi = image[200:240, :]
 
         # Convertir en HSV et créer un masque pour la couleur verte
-        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_green = np.array([40, 100, 100])
-        upper_green = np.array([80, 255, 255])
-        mask = cv2.inRange(hsv, lower_green, upper_green)
+        def getMoment(roi):
+            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            lower_green = np.array([40, 100, 100])
+            upper_green = np.array([80, 255, 255])
+            mask = cv2.inRange(hsv, lower_green, upper_green)
 
-        # Calcul du centre de gravité
-        M = cv2.moments(mask)
+            # Calcul du centre de gravité
+            return cv2.moments(mask)
+
+        roilim = [[200, 240], [160, 200], [120, 160], [80, 120], [40, 80]]
+        roi = image[200:240, :]
+        M = 0
+        for m, Ma in roilim:
+            roi = image[m:Ma, :]
+            M = getMoment(roi)
+            if M["m00"] > 0:
+                break
+
         if M["m00"] > 0:
             # Publication du signal d'arrêt pour un autre nœud
             self.triggerPub.publish(String(data="stop"))
@@ -78,14 +92,15 @@ class CompressedImageSubscriber(Node):
             self.get_logger().info(f"Ligne verte à x={cx}, erreur={error}")
             # Affichage sur la ROI
             cv2.circle(roi, (cx, 20), 5, (0, 255, 0), -1)
-        else:
+        elif self.DEBUG:
             # Pas de ligne détectée → ne publie rien
             self.get_logger().info("Aucune ligne détectée, aucune commande publiée.")
             
         # Affichage
-        cv2.imshow("ROI", roi)
-        cv2.imshow("Masque", mask)
-        cv2.waitKey(1)
+        if self.DEBUG:
+            cv2.imshow("ROI", roi)
+            #cv2.imshow("Masque", mask)
+            cv2.waitKey(1)
 
        
 

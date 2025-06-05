@@ -25,15 +25,18 @@ def generate_launch_description():
             executable='ligne',
             name='ligne',
             on_exit=launch.actions.Shutdown(),
-            output='screen',  # To display output messages in the terminal
-            emulate_tty=True,  # To preserve format, color of output messages
+            output='screen',
+            emulate_tty=True,
+            parameters = [{
+                'DEBUG' : "1",
+                }],  # To preserve format, color of output messages
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
             get_package_share_directory('challenge_project'), 'launch'),
             '/projet.launch.py']),
             launch_arguments=[
-                        ("x_pose", '2.5'),
+                        ("x_pose", '-2'),
                         ("y_pose", '0.59'),
                     ]
         ),

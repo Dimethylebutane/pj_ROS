@@ -33,7 +33,7 @@ class couloir_class(Node):
         self.declare_parameter('vmin', "0.3")
         self.declare_parameter('DEBUG', '0')
 
-        self.DEBUG = (self.get_parameter('output_topic').get_parameter_value().string_value == '1')
+        self.DEBUG = (self.get_parameter('DEBUG').get_parameter_value().string_value == '1')
         cmdveltopic = self.get_parameter('output_topic').get_parameter_value().string_value
         self.vmin = float(self.get_parameter('vmin').get_parameter_value().string_value)
 
@@ -42,8 +42,6 @@ class couloir_class(Node):
 
         self.Ka = 0.2 #raideur ressort angulaire
         self.Kl = 0.5 #raideur ressort linéaire
-        if self.DEBUG:
-            print(self.Ka)
 
         #Dynamic state
         self.m = 5.0
@@ -123,7 +121,6 @@ class couloir_class(Node):
         Fx = np.sum(Fx) #somme des force = résultante de freinage →inutilisé, voir vmin
         Mz = np.sum(Mz) #somme des moments = moment de rotation
         if abs(self.cib_theta) > 0.03: #2 deg
-            print("CIB REDUCE MZ")
             Mz = Mz/4 - self.cib_theta / 1.5
             self.cib_theta /= 5 #decay
 
@@ -132,7 +129,7 @@ class couloir_class(Node):
         
         self.v = max(self.m*(1 + Fx), self.vmin)    #clamp vmin → on max la vitesse vu que ça passe le robot est lent
 
-        wfrot = self.w * abs(self.w) * 1.25 * (1 + 0.12*self.bool_cib)
+        wfrot = self.w * abs(self.w) * 1.3 * (1 + 0.12*self.bool_cib)
         self.w += (Mz - wfrot)/self.I
         self.w = min(max(-1.5, self.w), 1.5)        #clamp -2; 2, eviter de construire trop d'inertie
 
