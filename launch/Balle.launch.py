@@ -19,12 +19,23 @@ def generate_launch_description():
                 "DEBUG" : "1", #minimal vitesse
                 }],
         ),
+        launch_ros.actions.Node(
+            package='pj_ROS',
+            executable='cible',
+            name='cible',
+            on_exit=launch.actions.Shutdown(),
+            output='screen',  # To display output messages in the terminal
+            emulate_tty=True,  # To preserve format, color of output messages
+            parameters = [{
+                "DEBUG" : "0", #minimal vitesse
+                }],
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
             get_package_share_directory('challenge_project'), 'launch'),
             '/projet.launch.py']),
             launch_arguments=[
-                        ("x_pose", '-1.5'),
+                        ("x_pose", '-5.3'),
                         ("y_pose", '0.15'),
                     ]
         ),

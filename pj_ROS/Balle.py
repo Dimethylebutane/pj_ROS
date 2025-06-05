@@ -14,9 +14,6 @@ import cv2 as cv
 class CompressedImageSubscriber(Node):
     def __init__(self):
         super().__init__('compressed_image_subscriber')
-        self.centre = [0, 0] #cx, cy
-        self.detec = False
-
         # Souscription à l'image compressée
         self.subscription = self.create_subscription(
             CompressedImage,
@@ -25,6 +22,13 @@ class CompressedImageSubscriber(Node):
             10
         )
         self.subscription  # évite un warning
+
+        self.cibleSub = self.create_subscription(
+            Vector3,
+            '/Cible_loc',
+            self.Cible_cb,
+            10
+        )
 
         # Paramètres
         self.declare_parameter('output_topic', '/cmd_vel')
@@ -37,7 +41,21 @@ class CompressedImageSubscriber(Node):
         self.botMsg = Twist()
 
         #stop epreuve 2
-        self.triggerPub = self.create_publisher(String, '/balle_trigger', 10)
+        self.triggerPub = self.create_publisher(String, '/vision_trigger', 10)
+
+        #Cible
+        self.cib_dst = 0
+        self.cib_ang = 0
+        self.cib_detec = 0
+ 
+
+    def Cible_cb(self, msg):
+        self.cib_dst = msg.x
+        self.cib_ang = msg.y
+        self.cib_detec = msg.z
+        if self.cib_detec > 0.5:
+            self.triggerPub.publish(String(data="balle")) #stop suivi de ligne
+            
 
     def imageCam_cb(self, msg):
         # Conversion du message compressé en image OpenCV
@@ -48,20 +66,20 @@ class CompressedImageSubscriber(Node):
             self.get_logger().warn("Échec du décodage de l'image")
             return
 
-        if self.DEBUG:
-            cv.imshow("Compressed Image", image)
+        #if self.DEBUG:
+        #    cv.imshow("Compressed Image", image)
 
-        self.detec_cible(image.copy())
+        self.detec_balle(image.copy())
                     
         if self.DEBUG:
             # Affichage
             cv.waitKey(1)
 
-    def detec_cible(self, img):
+    def detec_balle(self, img):
         hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-        lower_blue = np.array([80, 52, 45])
-        upper_blue = np.array([140, 200, 200])
-        maskb = cv.inRange(hsv, lower_blue, upper_blue)
+        lower_yellow = np.array([0, 52, 45])
+        upper_yellow = np.array([50, 200, 200])
+        maskb = cv.inRange(hsv, lower_yellow, upper_yellow)
         
         M = cv.moments(maskb)
         self.detec = (M["m00"] != 0)

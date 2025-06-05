@@ -13,6 +13,14 @@ import cv2
 class CompressedImageSubscriber(Node):
     def __init__(self):
         super().__init__('compressed_image_subscriber')
+        
+        # quand la balle est detecter, permet d'eteindre le noeud actuelle
+        self.triggerSub = self.create_subscription(
+            String,
+            '/vision_trigger',
+            self.trigger_cb,
+            10
+        )
 
         # Souscription à l'image compressée
         self.subscription = self.create_subscription(
@@ -40,6 +48,12 @@ class CompressedImageSubscriber(Node):
 
         #stopper le premier challenge
         self.triggerPub = self.create_publisher(String, '/vision_trigger', 10)
+
+    def trigger_cb(self, msg):
+        if msg.data.strip().lower() == "balle":
+            self.get_logger().warn("Message 'balle' reçu : arrêt du nœud. PASSAGE EN MODE DESTRUCTION DE BALLE")
+            rclpy.shutdown()
+
 
     def listener_callback(self, msg):
         # Conversion du message compressé en image OpenCV

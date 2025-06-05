@@ -122,9 +122,10 @@ class Cible_folower(Node):
         maskb = cv.inRange(hsv, lower_blue, upper_blue)#couleur in [min, max]
 
         #kernel = np.ones((25, 25), np.uint8)
-        Y, X = np.ogrid[:25, :25]
-        dist_from_center = np.sqrt((X - 13)**2 + (Y-13)**2)
-        kernel = np.array((dist_from_center <= 12)*1, dtype=np.uint8)
+        D = 7
+        Y, X = np.ogrid[:D, :D]
+        dist_from_center = np.sqrt((X-D//2)**2 + (Y-D//2)**2)
+        kernel = np.array((dist_from_center <= D//2)*1, dtype=np.uint8)
 
         maskb = cv.morphologyEx(maskb, cv.MORPH_CLOSE, kernel) #fermeture pour éviter les trous
         
@@ -154,7 +155,7 @@ class Cible_folower(Node):
             angl = np.arccos( np.dot(self.c3d, np.array([1, 0])) / np.linalg.norm(self.c3d) )
             Norm = np.linalg.norm(self.c3d)
 
-            conf = (Norm < 2.0)*1
+            conf = (Norm < 2.3)*1 #detec if distance < 2.5m
 
             if self.DEBUG:
                 print("dist =",Norm,"t=",angl, "conf=", conf)
