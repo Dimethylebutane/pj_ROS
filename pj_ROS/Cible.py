@@ -146,16 +146,18 @@ class Cible_folower(Node):
             coord, _ = self.fit_circle_2d(contour3D) #get center of circle
 
             self.c3d = coord
-            print("3d center:", coord, np.linalg.norm(coord))
+            if self.DEBUG:
+                print("3d center:", coord, np.linalg.norm(coord))
 
             x, y = zip(*contour3D[:,:-1])
 
             angl = np.arccos( np.dot(self.c3d, np.array([1, 0])) / np.linalg.norm(self.c3d) )
             Norm = np.linalg.norm(self.c3d)
 
-            conf = 1
+            conf = (Norm < 2.0)*1
 
-            print("dist =",Norm,"t=",angl, "conf=", conf)
+            if self.DEBUG:
+                print("dist =",Norm,"t=",angl, "conf=", conf)
 
             self.pubCibl(Norm, angl, conf)
        

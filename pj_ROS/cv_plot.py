@@ -89,7 +89,8 @@ class CompressedImageSubscriber(Node):
             self.botMsg.angular.z = -error * self.k_p  # coeff à ajuster
 
             self.botPub.publish(self.botMsg)
-            self.get_logger().info(f"Ligne verte à x={cx}, erreur={error}")
+            if self.DEBUG:
+                self.get_logger().info(f"Ligne verte à x={cx}, erreur={error}")
             # Affichage sur la ROI
             cv2.circle(roi, (cx, 20), 5, (0, 255, 0), -1)
         elif self.DEBUG:

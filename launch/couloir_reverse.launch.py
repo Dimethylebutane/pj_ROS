@@ -29,6 +29,7 @@ def generate_launch_description():
             parameters = [{
                 "output_topic" : "/cmd_vel", #directement parler au robot, pas besoin d'arbitrage de l'épreuve
                 "vmin" : "10", #minimal vitesse
+                "DEBUG" : "1", #minimal vitesse
                 }],
         ),
 

@@ -43,6 +43,8 @@ class couloir_class(Node):
         self.Ka = 0.2 #raideur ressort angulaire
         self.Kl = 0.5 #raideur ressort linéaire
 
+        self.frot = 1.3 #frotement rotation
+
         #Dynamic state
         self.m = 5.0
         self.v = 0.0 #vitesse x
@@ -106,8 +108,8 @@ class couloir_class(Node):
         angles = np.linspace(-np.pi/2 + inc*(n-1)/2, np.pi/2 - inc*(n-1)/2, N, True) #en rad l'angle de chaque rayon
         
         #force de freinage → inutilisé voir vmin
-        Fx = (r-self.Ll(angles)) * np.cos(angles) * self.Kl
-        Fx[Fx > 0] = 0 #les ressorts linéaire nous repousse uniquement. On supprime les ressorts qui nous attire
+        #Fx = (r-self.Ll(angles)) * np.cos(angles) * self.Kl
+        #Fx[Fx > 0] = 0 #les ressorts linéaire nous repousse uniquement. On supprime les ressorts qui nous attire
 
         #couple de rotation
         Mz = (r-self.La(angles)) * np.cos(angles/1.08) * self.Kl * self.La(angles)
@@ -118,18 +120,19 @@ class couloir_class(Node):
         confiance = np.sum(abs(Mz))
 
         #Physics
-        Fx = np.sum(Fx) #somme des force = résultante de freinage →inutilisé, voir vmin
+        #Fx = np.sum(Fx) #somme des force = résultante de freinage →inutilisé, voir vmin
         Mz = np.sum(Mz) #somme des moments = moment de rotation
         if abs(self.cib_theta) > 0.03: #2 deg
-            Mz = Mz/4 - self.cib_theta / 1.5
+            Mz = Mz/4 - self.cib_theta / 4
             self.cib_theta /= 5 #decay
 
         if self.DEBUG:
-            print("Fx:", Fx, "Mz:", Mz)
+            print("Mz:", Mz)
         
-        self.v = max(self.m*(1 + Fx), self.vmin)    #clamp vmin → on max la vitesse vu que ça passe le robot est lent
+        self.v = self.vmin
 
-        wfrot = self.w * abs(self.w) * 1.3 * (1 + 0.12*self.bool_cib)
+        #wfrot = self.w * abs(self.w) * self.frot * (1 + 0.12*self.bool_cib)
+        wfrot = self.w * abs(self.w) * self.frot * (1 + 0.2*self.bool_cib)
         self.w += (Mz - wfrot)/self.I
         self.w = min(max(-1.5, self.w), 1.5)        #clamp -2; 2, eviter de construire trop d'inertie
 
@@ -140,11 +143,6 @@ class couloir_class(Node):
         self.botMsg = Twist()
         self.botMsg.linear.x = self.v
         self.botMsg.angular.z = self.w 
-
-        self.botMsg.linear.y = clamp(0.0, (20-confiance) / 16.0, 1.0)
-        
-        if self.DEBUG:
-            print("confiance:", self.botMsg.linear.y)
 
         self.botPub.publish(self.botMsg)
         

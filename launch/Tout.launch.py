@@ -16,7 +16,7 @@ def generate_launch_description():
             output='screen',  # To display output messages in the terminal
             emulate_tty=True,  # To preserve format, color of output messages
             parameters = [{
-                "DEBUG" : "0", #minimal vitesse
+                "DEBUG" : "0",
                 }],
         ),       
 
@@ -30,6 +30,7 @@ def generate_launch_description():
             parameters = [{
                 "output_topic" : "/cmd_vel", #directement parler au robot, pas besoin d'arbitrage de l'épreuve
                 "vmin" : "10", #minimal vitesse
+                "DEBUG" : "0",
                 }],
         ),
 
