@@ -1,6 +1,12 @@
-import numpy as np
+import time
 import matplotlib.pyplot as plt
-
-q = np.array([0.0017455732073894737, -0.0059009600595707565, 0.27540183129500356, 0.9613095042513164])
-a = np.arccos(q[-1])
-print(a*180/np.pi)
+import numpy as np
+plt.ion()
+x = np.arange(0, 4*np.pi, 0.1)
+y = [np.sin(i) for i in x]
+plt.plot(x, y, 'g-', linewidth=1.5, markersize=4)
+plt.pause(0.)         
+plt.plot(x, [i**2 for i in y], 'g-', linewidth=1.5, markersize=4)
+plt.pause(0.)
+plt.plot(x, [i**2*i+0.25 for i in y], 'r-', linewidth=1.5, markersize=4) 
+plt.pause(0.)

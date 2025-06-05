@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 import numpy as np
 
-from sensor_msgs.msg import LaserScan, Imu
+from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist, Vector3
 
@@ -58,18 +58,7 @@ class couloir_class(Node):
             self.lidar_cb,
             10)
         self.lidarSub  # prevent unused variable warning
-
-        self.imuSub = self.create_subscription(
-            Imu,
-            'imu',
-            self.imu_cb,
-            10)
-        self.prevTime = 0
-        self.imuPos = np.zeros(3) #x, y, a
-        self.imuV = np.zeros(2)
-        self.imuW = 0.0
-        self.imuMat = np.array([[1, 0, 0],[0, 1, 0]])
-
+        
         self.cibSub = self.create_subscription(
             Vector3,
             'Cible_loc',
@@ -103,7 +92,7 @@ class couloir_class(Node):
 
         r = msg.ranges #distance brut par le lidar
         N = len(r) #lidar = 360 valeurs
-        
+
         #convert to np array
         r = np.abs(np.array(r, dtype=np.float32))
         r = np.append(r[-N//4:][::-1], r[:N//4]) #-pi/2 à pi/2
@@ -113,6 +102,7 @@ class couloir_class(Node):
         n = 4
         r = self.moving_average(r, n=n) #moyenne glissante
         N = N - n + 1 #la moyenne à supprimer quelque valeurs
+        #print("r:", r)
 
         #angles en radian des faisceaux
         angles = np.linspace(-np.pi/2 + inc*(n-1)/2, np.pi/2 - inc*(n-1)/2, N, True) #en rad l'angle de chaque rayon
@@ -161,32 +151,6 @@ class couloir_class(Node):
 
         self.botPub.publish(self.botMsg)
         
-    def imu_cb(self, msg):#Euler null, à changer ?
-        Dt = msg.header.stamp
-        Dt = Dt.nanosec/(1e9)
-        Dt, self.prevTime = Dt-self.prevTime, Dt
-        if Dt <0 : #handle second decalage, evite de monter trop haut en seconde pr garder précision en ns
-            Dt += 1.0
-        
-        dangl = msg.angular_velocity.z * Dt
-        rotation = np.array([[np.cos(dangl), -np.sin(dangl)],[np.sin(dangl), np.cos(dangl)]])
-        
-        self.V = rotation@self.imuV #rotation en 1er je pense ?
-        self.imuV += Dt * np.array([msg.linear_acceleration.x, msg.linear_acceleration.y]) #speed
-        self.imuPos += np.array([self.imuV[0]*Dt, Dt*self.imuV[1], dangl])
-
-        aW = self.imuPos[-1]
-
-        print("POS :", self.imuPos)
-        print("quat:", msg.orientation)
-        aq = np.arccos(msg.orientation.w)
-        av = np.arctan2(self.imuV[1], self.imuV[0])
-        am = (aW + av + aq) / 3 #change orientation based on multiple sources
-
-        self.imuPos[-1] = am 
-        self.imuMat = np.array([[np.cos(am), -np.sin(am), self.imuPos[0]], [np.sin(am), np.cos(am), self.imuPos[1]]])
-        self.imuV = np.array([np.cos(am), np.sin(am)]) * np.linalg.norm(self.imuV)
-
     def trigger_cb(self, msg):
         if msg.data.strip().lower() == "stop":
             self.get_logger().warn("Message 'stop' reçu : arrêt du nœud.")

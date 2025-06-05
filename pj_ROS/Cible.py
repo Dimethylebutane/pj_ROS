@@ -8,6 +8,11 @@ import cv2 as cv
 def tilde(P):
     return np.column_stack((P, np.ones(P.shape[0])))
 
+def moving_average(a, n=3):
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
 matvec = lambda A, B : np.array([A@b for b in B])
 
 def clamp(m, a, M):
