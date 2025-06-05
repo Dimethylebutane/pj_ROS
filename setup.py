@@ -23,8 +23,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'couloir = pj_ROS.Testgreg:main',
-            'ligne = pj_ROS.cv_plot:main',
+            'couloir = pj_ROS.Couloir:main',
+            'ligne = pj_ROS.Ligne:main',
             'balle = pj_ROS.Balle:main',
             'cible = pj_ROS.Cible:main',
         ],
