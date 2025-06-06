@@ -6,6 +6,7 @@ from rosgraph_msgs.msg import Clock
 from std_msgs.msg import String
 from std_srvs.srv import Empty
 from geometry_msgs.msg import Twist, Vector3
+from sensor_msgs.msg import LaserScan
 import numpy as np
 import cv2
 
@@ -21,6 +22,15 @@ class CompressedImageSubscriber(Node):
             self.trigger_cb,
             10
         )
+
+        #subscribe to lidar
+        self.lidarSub = self.create_subscription(
+            LaserScan,
+            'scan',
+            self.lidar_cb,
+            10)
+        self.lidarSub  # prevent unused variable warning
+        self.STOP = False
 
         # Souscription à l'image compressée
         self.subscription = self.create_subscription(
@@ -54,6 +64,12 @@ class CompressedImageSubscriber(Node):
             self.get_logger().warn("Message 'balle' reçu : arrêt du nœud. PASSAGE EN MODE DESTRUCTION DE BALLE")
             rclpy.shutdown()
 
+    def lidar_cb(self, msg):
+        r = msg.ranges #distance brut par le lidar
+
+        df = (np.mean(r[:20]) + np.mean(r[-20:])) / 2 #distance moyenne cone de 40° devant
+
+        self.STOP = (df < 0.4)
 
     def listener_callback(self, msg):
         # Conversion du message compressé en image OpenCV
@@ -99,8 +115,8 @@ class CompressedImageSubscriber(Node):
 
             # Commande robot : avance + corrige direction
             self.botMsg = Twist()
-            self.botMsg.linear.x = self.vmin
-            self.botMsg.angular.z = -error * self.k_p  # coeff à ajuster
+            self.botMsg.linear.x = self.vmin * (1-self.STOP)
+            self.botMsg.angular.z = -error * self.k_p * (1-self.STOP)  # coeff à ajuster
 
             self.botPub.publish(self.botMsg)
             if self.DEBUG:
