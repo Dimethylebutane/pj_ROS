@@ -1,2 +1,2 @@
 .tasks
-pj_ROS/__*
+pj_ROS/__pycache__/*
