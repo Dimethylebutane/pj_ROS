@@ -1,15 +1,11 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
-#from std_msgs.msg import Int32
-#from rosgraph_msgs.msg import Clock
 from std_msgs.msg import String
-#from std_srvs.srv import Empty
 from geometry_msgs.msg import Twist, Vector3
 import numpy as np
 import cv2 as cv
-#from ament_index_python.packages import get_package_share_directory
-#import os
+from .smallest_enclosing_circle import make_circle #plus petit cercle qui entoure une liste de point, source = voir fichier
 
 class CompressedImageSubscriber(Node):
     def __init__(self):
@@ -77,24 +73,38 @@ class CompressedImageSubscriber(Node):
 
     def detec_balle(self, img):
         hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-        lower_yellow = np.array([0, 52, 45])
-        upper_yellow = np.array([50, 200, 200])
+        lower_yellow = np.array([30, 180, 10])
+        upper_yellow = np.array([40, 255, 255])
         maskb = cv.inRange(hsv, lower_yellow, upper_yellow)
-        
-        M = cv.moments(maskb)
-        self.detec = (M["m00"] != 0)
+
+        D = 11
+        Y, X = np.ogrid[:D, :D]
+        dist_from_center = np.sqrt((X-D//2)**2 + (Y-D//2)**2)
+        kernel = np.array((dist_from_center <= D//2)*1, dtype=np.uint8)
+
+        maskb = cv.morphologyEx(maskb, cv.MORPH_CLOSE, kernel) #fermeture pour éviter les trous
+        cs, _ = cv.findContours(maskb, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE) #contour externe de la zone détectée
+        if len(cs) == 0:
+            return #no balle detectée
+
+        contour = max(cs, key=lambda c: len(c))
+
+        #draw contour
+        maskb = cv.drawContours(maskb, contour, -1, (255, 0, 255), 3)
+
+        contour = contour.reshape(max(contour.shape), 2)
+        self.detec = len(contour) > 20
+        print("detec?", self.detec, contour.shape)
 
         if self.detec:
-            cx = int(M["m10"] / M["m00"]) #https://en.wikipedia.org/wiki/Image_moment#Examples
-            cy = int(M["m01"] / M["m00"])
-    
-            contour = cv.findNonZero(maskb)
-            if len(contour) >= 5:  # fitEllipse requires at least 5 points
-                ellipse = cv.fitEllipse(contour)
-                print(ellipse)
-                cx, cy = (int(ellipse[0][0]), int(ellipse[0][1]))
+            cx, cy, _ = make_circle(contour) #x,y only, ignore radius
+
+            if self.DEBUG:
+                print("balle trouvé, coord image:", cx, cy, "px")
        
             if self.DEBUG:
+                cy = int(cy + 0.5)
+                cx = int(cx + 0.5)
                 maskb = cv.add(img, cv.cvtColor(maskb, cv.COLOR_GRAY2BGR))
                 cv.circle(maskb, (cx, cy), 5, (0, 255, 0), -1)
 

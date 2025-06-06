@@ -4,7 +4,7 @@ from sensor_msgs.msg import CompressedImage, CameraInfo
 from geometry_msgs.msg import Vector3
 import numpy as np
 import cv2 as cv
-from .smallest_enclosing_circle import make_circle
+from .smallest_enclosing_circle import make_circle #plus petit cercle qui entoure une liste de point, source = voir fichier
 
 def tilde(P):
     return np.column_stack((P, np.ones(P.shape[0])))
@@ -85,19 +85,6 @@ class Cible_folower(Node):
         Pest = self.camPos - np.multiply(t.reshape(t.shape[0], 1), di) #point = position camera + vecteur direction*taille
         return Pest
 
-    #def fit_circle_2d(self, points): #THX CHAT GPT
-    #    points = np.array(points)
-    #    A = np.hstack((2 * points, np.ones((len(points), 1))))
-    #    b = np.sum(points**2, axis=1)
-    #    
-    #    # LSE - fit cercle
-    #    x = np.linalg.lstsq(A, b, rcond=None)[0]
-    #    
-    #    center = x[:2]
-    #    radius = np.sqrt(x[2] + np.sum(center**2))
-    #    
-    #    return center, radius
-
     def infoCam_cb(self, msg):
         if not self.calib:
             P = np.reshape(msg.p, (3, 4))
@@ -134,10 +121,8 @@ class Cible_folower(Node):
         if len(cs) == 0: #no cible detected
             self.pubCibl(np.inf, 0, 0) #confiance = 0
             return
-        print("contours: ", len(cs), cs[0].shape)
 
         contour = np.concatenate(cs)
-        print("contours: ", len(contour), contour.shape)
         #contour = max(cs, key=lambda c: len(c))
         self.detec = len(contour) > 50
 
