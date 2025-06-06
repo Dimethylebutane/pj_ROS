@@ -16,7 +16,7 @@ def generate_launch_description():
             emulate_tty=True,  # To preserve format, color of output messages
             parameters = [{
                 "output_topic" : "/cmd_vel",
-                "DEBUG" : "1", #minimal vitesse
+                "DEBUG" : "1",
                 }],
         ),
         launch_ros.actions.Node(
@@ -27,7 +27,7 @@ def generate_launch_description():
             output='screen',  # To display output messages in the terminal
             emulate_tty=True,  # To preserve format, color of output messages
             parameters = [{
-                "DEBUG" : "0", #minimal vitesse
+                "DEBUG" : "0",
                 }],
         ),
         IncludeLaunchDescription(
@@ -35,8 +35,8 @@ def generate_launch_description():
             get_package_share_directory('challenge_project'), 'launch'),
             '/projet.launch.py']),
             launch_arguments=[
-                        ("x_pose", '-5.3'),
-                        ("y_pose", '0.15'),
+                        ("x_pose", '-5.3'), #-5.3
+                        ("y_pose", '0.15'), #0.15
                     ]
         ),
     ])
