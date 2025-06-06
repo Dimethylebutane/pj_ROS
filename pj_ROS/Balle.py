@@ -147,7 +147,6 @@ class CompressedImageSubscriber(Node):
                     t = np.arctan2(-Obj[1], Obj[0]) #angle, z vers le haut
                 else:
                     v = 0.05
-                    print("------", np.arccos(np.dot(cxy, bxy)), ">", np.pi/180, r)
 
                 msg = Twist()
                 msg.linear.x = v
