@@ -20,7 +20,7 @@ class CompressedImageSubscriber(Node):
             CompressedImage,
             '/image_raw/compressed',
             self.imageCam_cb,
-            10
+            2
         )
         self.subscription  # évite un warning
 
@@ -104,7 +104,7 @@ class CompressedImageSubscriber(Node):
 
         balle = self.detec_balle(image.copy())
 
-        if balle != None and self.cib_dst > 0.4:
+        if balle != None and self.cib_dst > 0.5:
             bx, by = balle
             bxy = estimatePose(np.asarray([[bx, 480-by]]), self.KRTi, self.camPos, self.camPos[-1]-self.balle_rad)[0][:-1] #estimation de pose
 
@@ -129,13 +129,13 @@ class CompressedImageSubscriber(Node):
 
                 print("t", t, "r", r, "cib_dst", self.cib_dst, "cib_ang", self.cib_ang)#, " - ", abs(self.cib_ang)<np.pi/360, abs(t) < np.pi/360, self.cib_dst > 0.5)
 
-                v = clamp(0.0, r, 1.0)
+                v = clamp(0.0, self.cib_dst, 1.0)
 
                 cxy = cxy / np.linalg.norm(cxy) #direction cible
                 bxy = bxy / np.linalg.norm(bxy) #direction balle
 
                 #if (r > 0.4) and (np.arccos(np.dot(cxy, bxy)) > np.pi/180): # > 0 rad → pas aligné → target point retrait
-                if (np.arccos(np.dot(cxy, bxy)) > 3*np.pi/180): # > 0 rad → pas aligné → target point retrait
+                if (np.arccos(np.dot(cxy, bxy)) > 2*np.pi/180) and (r>0.4): # > 0 rad → pas aligné → target point retrait
                     t = np.arctan2(-Obj[1], Obj[0]) #angle, z vers le haut
                 else:
                     v = 0.05
