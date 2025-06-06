@@ -1,4 +1,5 @@
 import rclpy
+import matplotlib.pyplot as plt
 from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage, CameraInfo
 from std_msgs.msg import String
@@ -7,6 +8,9 @@ import numpy as np
 import cv2 as cv
 from .smallest_enclosing_circle import make_circle #plus petit cercle qui entoure une liste de point, source = voir fichier
 from .estimate_pose import estimatePose #corrd image vers coord 3d
+
+def clamp(m, a, M):
+    return min(max(m, a), M)
 
 class CompressedImageSubscriber(Node):
     def __init__(self):
@@ -54,8 +58,6 @@ class CompressedImageSubscriber(Node):
             10
         )
 
-
-
         # Paramètres
         self.declare_parameter('output_topic', '/cmd_vel')
         cmdveltopic = self.get_parameter('output_topic').get_parameter_value().string_value
@@ -64,7 +66,6 @@ class CompressedImageSubscriber(Node):
 
         # Publisher Twist pour cmd_vel
         self.botPub = self.create_publisher(Twist, cmdveltopic, 10)
-        self.botMsg = Twist()
 
         #stop epreuve 2
         self.triggerPub = self.create_publisher(String, '/vision_trigger', 10)
@@ -73,14 +74,17 @@ class CompressedImageSubscriber(Node):
         self.cib_dst = 0
         self.cib_ang = 0
         self.cib_detec = 0
- 
 
+        if self.DEBUG:
+            plt.ion()
+ 
+ 
     def Cible_cb(self, msg):
         self.cib_dst = msg.x
-        self.cib_ang = msg.y
+        self.cib_ang = msg.y*1.03
         self.cib_detec = msg.z
-        if self.DEBUG and self.cib_detec:
-            print("cible at", self.cib_dst, self.cib_ang)
+        #if self.DEBUG and self.cib_detec:
+        #    print("cible at", self.cib_dst, self.cib_ang)
            
     def infoCam_cb(self, msg):
         if not self.calib:
@@ -100,13 +104,71 @@ class CompressedImageSubscriber(Node):
 
         balle = self.detec_balle(image.copy())
 
-        if balle != None:
-            cx, cy = balle
-            cxy = estimatePose(np.asarray([[cx, 480-cy]]), self.KRTi, self.camPos, self.camPos[-1]-self.balle_rad)[0][:-1]
-            r = np.linalg.norm(cxy)
-            t = np.arctan2(cxy[1], cxy[0])
-            if self.DEBUG:
-                print("3d balle coord xy:", cxy, "polaire (r, theta):", r, t)
+        if balle != None and self.cib_dst > 0.4:
+            bx, by = balle
+            bxy = estimatePose(np.asarray([[bx, 480-by]]), self.KRTi, self.camPos, self.camPos[-1]-self.balle_rad)[0][:-1] #estimation de pose
+
+            #Conversion polaire
+            r = np.linalg.norm(bxy) #norm = distance
+            t = -np.arctan2(bxy[1], bxy[0]) #angle, z vers le haut
+            #if self.DEBUG:
+            #    print("3d balle coord xy:", bxy, "polaire (r, theta):", r, t)
+
+            if self.cib_detec: #si plus loin que 20cm
+                cxy = np.asarray([self.cib_dst*np.cos(-self.cib_ang), self.cib_dst*np.sin(-self.cib_ang)]) #cible x,y, z vers le bas
+                #t = t + np.sign(t)*10*np.pi/180
+                D = bxy - cxy #direction cible → balle
+                D = D / np.linalg.norm(D)
+                Obj = bxy + D*0.3 #point que l'on vise, un peu en retrait de la balle pour l'aligner avec la cible
+
+                plt.plot([Obj[0]], [Obj[1]], "d")
+                plt.plot([cxy[0]], [cxy[1]], "+")
+                plt.plot([bxy[0]], [bxy[1]], ".")
+                plt.plot([0], [0], "o")
+                plt.pause(0.00001)
+
+                print("t", t, "r", r, "cib_dst", self.cib_dst, "cib_ang", self.cib_ang)#, " - ", abs(self.cib_ang)<np.pi/360, abs(t) < np.pi/360, self.cib_dst > 0.5)
+
+                v = clamp(0.0, r, 1.0)
+
+                cxy = cxy / np.linalg.norm(cxy) #direction cible
+                bxy = bxy / np.linalg.norm(bxy) #direction balle
+
+                #if (r > 0.4) and (np.arccos(np.dot(cxy, bxy)) > np.pi/180): # > 0 rad → pas aligné → target point retrait
+                if (np.arccos(np.dot(cxy, bxy)) > 3*np.pi/180): # > 0 rad → pas aligné → target point retrait
+                    t = np.arctan2(-Obj[1], Obj[0]) #angle, z vers le haut
+                else:
+                    v = 0.05
+                    print("------", np.arccos(np.dot(cxy, bxy)), ">", np.pi/180, r)
+
+                #if abs(t) > np.pi or np.linalg.norm(Obj) < 0.1:
+                #    t = 0.0
+                #    v = 0.1
+
+                #if self.DEBUG:
+                #    print("Objectif:", t)
+
+                msg = Twist()
+                msg.linear.x = v
+                msg.angular.z = t * 2.0 #correcteur proportionelle
+                self.botPub.publish(msg)
+            else: #cible not detected
+                if r > 0.4: #la balle est loin, on continue tout droit
+                    msg = Twist()
+                    msg.linear.x = 0.1
+                    msg.angular.z = 0.0
+                    self.botPub.publish(msg)
+                else: #todo: stop ?
+                    msg = Twist()
+                    msg.linear.x = 0.1
+                    msg.angular.z = t * 2.0 #correcteur proportionelle
+                    self.botPub.publish(msg)
+
+        else:
+            msg = Twist()
+            msg.linear.x = 0.0
+            msg.angular.z = -0.2 #scan autour
+            self.botPub.publish(msg)
 
                     
         if self.DEBUG:
@@ -143,8 +205,8 @@ class CompressedImageSubscriber(Node):
          
             cx, cy, _ = make_circle(contour) #x,y only, ignore radius
 
-            if self.DEBUG:
-                print("balle trouvé, coord image:", cx, cy, "px")
+            #if self.DEBUG:
+            #    print("balle trouvé, coord image:", cx, cy, "px")
        
             if self.DEBUG:
                 cy = int(cy + 0.5)

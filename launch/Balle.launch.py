@@ -27,7 +27,7 @@ def generate_launch_description():
             output='screen',  # To display output messages in the terminal
             emulate_tty=True,  # To preserve format, color of output messages
             parameters = [{
-                "DEBUG" : "0",
+                "DEBUG" : "1",
                 }],
         ),
         IncludeLaunchDescription(
