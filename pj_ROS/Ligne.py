@@ -90,18 +90,18 @@ class CompressedImageSubscriber(Node):
             hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
             lower_green = np.array([40, 100, 100])
             upper_green = np.array([80, 255, 255])
-            mask = cv2.inRange(hsv, lower_green, upper_green)
+            mask = cv2.inRange(hsv, lower_green, upper_green) #la ligne est verte, sur un intervalle pour les reflets
 
             # Calcul du centre de gravité
             return cv2.moments(mask)
 
-        roilim = [[200, 240], [160, 200], [120, 160], [80, 120], [40, 80]]
+        roilim = [[200, 240], [160, 200], [120, 160], [80, 120], [40, 80]]  #on divise la vision de la camera en 5 zones
         roi = image[200:240, :]
         M = 0
-        for m, Ma in roilim:
+        for m, Ma in roilim:  #on parcours l'image pour trouver la zone où l'on peut voir la ligne
             roi = image[m:Ma, :]
             M = getMoment(roi)
-            if M["m00"] > 0:
+            if M["m00"] > 0:  #quand la ligne est trouvée on passe à la suite
                 break
 
         if M["m00"] > 0:
@@ -110,8 +110,9 @@ class CompressedImageSubscriber(Node):
             cx = int(M["m10"] / M["m00"])
               # Calcul de l’erreur de centrage
             width = roi.shape[1]
-            center = width // 2
-            error = cx - center
+            center = width // 2 #on utilise le fait que la camera soit aligée avec la drection du robot pour faire
+            #l'hypothèse que le centre de l'image est aligné avec le vecteur de l'avance.
+            error = cx - center  #le centre de l'image doit donc s'aligner avec le milieu de la ligne
 
             # Commande robot : avance + corrige direction
             self.botMsg = Twist()
