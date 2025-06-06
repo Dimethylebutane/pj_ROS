@@ -1,11 +1,12 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import CompressedImage, CameraInfo
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist, Vector3
 import numpy as np
 import cv2 as cv
 from .smallest_enclosing_circle import make_circle #plus petit cercle qui entoure une liste de point, source = voir fichier
+from .estimate_pose import estimatePose #corrd image vers coord 3d
 
 class CompressedImageSubscriber(Node):
     def __init__(self):
@@ -25,6 +26,35 @@ class CompressedImageSubscriber(Node):
             self.Cible_cb,
             10
         )
+    
+        #balle géometrie
+        self.balle_rad = 0.05 #sdf file
+
+        #robot géometrie
+        self.alpha = 0.52 #pitch cam - voir rviz
+        self.h = 0.11 #hauteur cam - voir rviz
+        self.a = 0.04 #avance cam - voir rviz
+        self.camRez = [640, 480]
+        self.camPos = np.array([self.a, 0, self.h])
+        sa = np.sin(self.alpha)
+        ca = np.cos(self.alpha)
+        self.R = np.linalg.inv(np.array([
+            [0,  sa,  ca, self.a],
+            [1,  0,   0,  0],
+            [0,  ca, -sa, self.h],
+            [0,  0,   0,  1],
+            ])) #camera -> robot
+
+        self.calib = False
+        self.KRTi = np.eye(4)[:, :-1] #pour inverser pixel -> direction 3d
+        self.CameraInfoSub = self.create_subscription(
+            CameraInfo,
+            '/camera_info',
+            self.infoCam_cb,
+            10
+        )
+
+
 
         # Paramètres
         self.declare_parameter('output_topic', '/cmd_vel')
@@ -49,9 +79,15 @@ class CompressedImageSubscriber(Node):
         self.cib_dst = msg.x
         self.cib_ang = msg.y
         self.cib_detec = msg.z
-        if self.cib_detec > 0.5:
-            self.triggerPub.publish(String(data="balle")) #stop suivi de ligne
-            
+        if self.DEBUG and self.cib_detec:
+            print("cible at", self.cib_dst, self.cib_ang)
+           
+    def infoCam_cb(self, msg):
+        if not self.calib:
+            P = np.reshape(msg.p, (3, 4))
+            self.KRTi = np.linalg.pinv(P@self.R)
+            self.calib = True
+        #matrice de calibration de la camera
 
     def imageCam_cb(self, msg):
         # Conversion du message compressé en image OpenCV
@@ -62,10 +98,16 @@ class CompressedImageSubscriber(Node):
             self.get_logger().warn("Échec du décodage de l'image")
             return
 
-        #if self.DEBUG:
-        #    cv.imshow("Compressed Image", image)
+        balle = self.detec_balle(image.copy())
 
-        self.detec_balle(image.copy())
+        if balle != None:
+            cx, cy = balle
+            cxy = estimatePose(np.asarray([[cx, 480-cy]]), self.KRTi, self.camPos, self.camPos[-1]-self.balle_rad)[0][:-1]
+            r = np.linalg.norm(cxy)
+            t = np.arctan2(cxy[1], cxy[0])
+            if self.DEBUG:
+                print("3d balle coord xy:", cxy, "polaire (r, theta):", r, t)
+
                     
         if self.DEBUG:
             # Affichage
@@ -85,18 +127,20 @@ class CompressedImageSubscriber(Node):
         maskb = cv.morphologyEx(maskb, cv.MORPH_CLOSE, kernel) #fermeture pour éviter les trous
         cs, _ = cv.findContours(maskb, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE) #contour externe de la zone détectée
         if len(cs) == 0:
-            return #no balle detectée
+            return None #no balle detectée
 
         contour = max(cs, key=lambda c: len(c))
 
         #draw contour
         maskb = cv.drawContours(maskb, contour, -1, (255, 0, 255), 3)
 
-        contour = contour.reshape(max(contour.shape), 2)
         self.detec = len(contour) > 20
-        print("detec?", self.detec, contour.shape)
 
         if self.detec:
+            contour = contour.reshape(max(contour.shape), 2)
+            if self.cib_detec > 0.5:
+                self.triggerPub.publish(String(data="balle")) #stop suivi de ligne
+         
             cx, cy, _ = make_circle(contour) #x,y only, ignore radius
 
             if self.DEBUG:
@@ -111,6 +155,9 @@ class CompressedImageSubscriber(Node):
                 cv.imshow("mask", maskb)
                 cv.waitKey(1)
         
+            return cx, cy
+
+        return None
         
 
 def main(args=None):

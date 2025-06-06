@@ -5,6 +5,7 @@ from geometry_msgs.msg import Vector3
 import numpy as np
 import cv2 as cv
 from .smallest_enclosing_circle import make_circle #plus petit cercle qui entoure une liste de point, source = voir fichier
+from .estimate_pose import estimatePose #corrd image vers coord 3d
 
 def tilde(P):
     return np.column_stack((P, np.ones(P.shape[0])))
@@ -75,15 +76,15 @@ class Cible_folower(Node):
 
         self.pub_loc.publish(a)
 
-    def estimatePose(self, uvs):
-        U = tilde(uvs)
-        pinv = self.KRTi
-        di = matvec(pinv, U)[:,:-1]
-        
-        dz = di[:,-1]
-        t = self.camPos[-1]/dz #taille du vecteur pour toucher le sol (z=0)
-        Pest = self.camPos - np.multiply(t.reshape(t.shape[0], 1), di) #point = position camera + vecteur direction*taille
-        return Pest
+    #def estimatePose(self, uvs):
+    #    U = tilde(uvs)
+    #    pinv = self.KRTi
+    #    di = matvec(pinv, U)[:,:-1]
+    #    
+    #    dz = di[:,-1]
+    #    t = self.camPos[-1]/dz #taille du vecteur pour toucher le sol (z=0)
+    #    Pest = self.camPos - np.multiply(t.reshape(t.shape[0], 1), di) #point = position camera + vecteur direction*taille
+    #    return Pest
 
     def infoCam_cb(self, msg):
         if not self.calib:
@@ -132,7 +133,9 @@ class Cible_folower(Node):
         else:
             contour3D = np.array(contour).reshape((contour.shape[0], 2))
             contour3D[:, 1] = self.camRez[1] - contour3D[:, 1]
-            contour3D = self.estimatePose(contour3D) #convertion en point 3d
+            #contour3D = self.estimatePose(contour3D) #convertion en point 3d
+            contour3D = estimatePose(contour3D, self.KRTi, self.camPos, self.camPos[-1])
+
             coord = make_circle(contour3D[:,:2])[:2] #x,y only, ignore radius
 
             self.c3d = coord
@@ -141,7 +144,7 @@ class Cible_folower(Node):
 
             x, y = zip(*contour3D[:,:-1])
 
-            angl = np.arccos( np.dot(self.c3d, np.array([1, 0])) / np.linalg.norm(self.c3d) )
+            angl = np.arctan2(self.c3d[1], self.c3d[0])
             Norm = np.linalg.norm(self.c3d)
 
             conf = (Norm < 2.3)*1 #detec if distance < 2.5m
