@@ -19,6 +19,17 @@ def generate_launch_description():
                 "DEBUG" : "0",
                 }],
         ),       
+        launch_ros.actions.Node(
+            package='pj_ROS',
+            executable='balle',
+            name='balle',
+            on_exit=launch.actions.Shutdown(),
+            output='screen',  # To display output messages in the terminal
+            emulate_tty=True,  # To preserve format, color of output messages
+            parameters = [{
+                "DEBUG" : "0",
+                }],
+        ),       
 
         launch_ros.actions.Node(
             package='pj_ROS',

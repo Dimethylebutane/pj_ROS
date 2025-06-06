@@ -78,6 +78,7 @@ class CompressedImageSubscriber(Node):
         if self.DEBUG:
             plt.ion()
  
+        self.GOGOGO = False
  
     def Cible_cb(self, msg):
         self.cib_dst = msg.x
@@ -104,6 +105,10 @@ class CompressedImageSubscriber(Node):
 
         balle = self.detec_balle(image.copy())
 
+        if balle == None and not self.GOGOGO:
+            return
+
+
         if balle != None and self.cib_dst > 0.5:
             bx, by = balle
             bxy = estimatePose(np.asarray([[bx, 480-by]]), self.KRTi, self.camPos, self.camPos[-1]-self.balle_rad)[0][:-1] #estimation de pose
@@ -111,8 +116,13 @@ class CompressedImageSubscriber(Node):
             #Conversion polaire
             r = np.linalg.norm(bxy) #norm = distance
             t = -np.arctan2(bxy[1], bxy[0]) #angle, z vers le haut
-            #if self.DEBUG:
-            #    print("3d balle coord xy:", bxy, "polaire (r, theta):", r, t)
+
+            if r < 1.5:
+                self.triggerPub.publish(String(data="balle")) #stop suivi de ligne
+                self.GOGOGO = True
+            
+            if not self.GOGOGO:
+                return
 
             if self.cib_detec: #si plus loin que 20cm
                 cxy = np.asarray([self.cib_dst*np.cos(-self.cib_ang), self.cib_dst*np.sin(-self.cib_ang)]) #cible x,y, z vers le bas
@@ -121,32 +131,23 @@ class CompressedImageSubscriber(Node):
                 D = D / np.linalg.norm(D)
                 Obj = bxy + D*0.3 #point que l'on vise, un peu en retrait de la balle pour l'aligner avec la cible
 
-                plt.plot([Obj[0]], [Obj[1]], "d")
-                plt.plot([cxy[0]], [cxy[1]], "+")
-                plt.plot([bxy[0]], [bxy[1]], ".")
-                plt.plot([0], [0], "o")
-                plt.pause(0.00001)
-
-                print("t", t, "r", r, "cib_dst", self.cib_dst, "cib_ang", self.cib_ang)#, " - ", abs(self.cib_ang)<np.pi/360, abs(t) < np.pi/360, self.cib_dst > 0.5)
+                if self.DEBUG:
+                    plt.plot([Obj[0]], [Obj[1]], "d")
+                    plt.plot([cxy[0]], [cxy[1]], "+")
+                    plt.plot([bxy[0]], [bxy[1]], ".")
+                    plt.plot([0], [0], "o")
+                    plt.pause(0.00001)
 
                 v = clamp(0.0, self.cib_dst, 1.0)
 
                 cxy = cxy / np.linalg.norm(cxy) #direction cible
                 bxy = bxy / np.linalg.norm(bxy) #direction balle
 
-                #if (r > 0.4) and (np.arccos(np.dot(cxy, bxy)) > np.pi/180): # > 0 rad → pas aligné → target point retrait
                 if (np.arccos(np.dot(cxy, bxy)) > 2*np.pi/180) and (r>0.4): # > 0 rad → pas aligné → target point retrait
                     t = np.arctan2(-Obj[1], Obj[0]) #angle, z vers le haut
                 else:
                     v = 0.05
                     print("------", np.arccos(np.dot(cxy, bxy)), ">", np.pi/180, r)
-
-                #if abs(t) > np.pi or np.linalg.norm(Obj) < 0.1:
-                #    t = 0.0
-                #    v = 0.1
-
-                #if self.DEBUG:
-                #    print("Objectif:", t)
 
                 msg = Twist()
                 msg.linear.x = v
@@ -200,13 +201,9 @@ class CompressedImageSubscriber(Node):
 
         if self.detec:
             contour = contour.reshape(max(contour.shape), 2)
-            if self.cib_detec > 0.5:
-                self.triggerPub.publish(String(data="balle")) #stop suivi de ligne
          
             cx, cy, _ = make_circle(contour) #x,y only, ignore radius
 
-            #if self.DEBUG:
-            #    print("balle trouvé, coord image:", cx, cy, "px")
        
             if self.DEBUG:
                 cy = int(cy + 0.5)
