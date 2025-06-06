@@ -144,7 +144,7 @@ class Cible_folower(Node):
 
             x, y = zip(*contour3D[:,:-1])
 
-            angl = np.arctan2(self.c3d[1], self.c3d[0])
+            angl = -np.arctan2(self.c3d[1], self.c3d[0]) #z vers le haut, inversion
             Norm = np.linalg.norm(self.c3d)
 
             conf = (Norm < 2.3)*1 #detec if distance < 2.5m
