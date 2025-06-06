@@ -35,8 +35,8 @@ def generate_launch_description():
             get_package_share_directory('challenge_project'), 'launch'),
             '/projet.launch.py']),
             launch_arguments=[
-                        ("x_pose", '-5.3'),
-                        ("y_pose", '0.15'),
+                        ("x_pose", '-5.3'), #-5.3
+                        ("y_pose", '0.15'), #0.15
                     ]
         ),
     ])

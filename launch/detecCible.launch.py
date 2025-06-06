@@ -15,7 +15,7 @@ def generate_launch_description():
             output='screen',  # To display output messages in the terminal
             emulate_tty=True,  # To preserve format, color of output messages
             parameters = [{
-                "DEBUG" : "0",
+                "DEBUG" : "1",
                 }],
         ),
         IncludeLaunchDescription(
@@ -23,8 +23,8 @@ def generate_launch_description():
             get_package_share_directory('challenge_project'), 'launch'),
             '/projet.launch.py']),
             launch_arguments=[
-                        ("x_pose", '-1.96'), #-0.5
-                        ("y_pose", '0.65'),  #0.0
+                        ("x_pose", '-5.3'), #-1.96
+                        ("y_pose", '0.15'),  #0.65
                     ]
         ),
     ])
